@@ -7,16 +7,18 @@ import { ArmService } from 'app/shared/services/arm.service';
 import { AiService } from 'app/shared/services/ai.service';
 import { Constants, LogCategories } from 'app/shared/models/constants';
 import { LogService } from 'app/shared/services/log.service';
+import { Subject } from 'rxjs/Subject';
+import { OnDestroy } from '@angular/core/src/metadata/lifecycle_hooks';
 
 @Component({
 	selector: 'app-configure-dropbox',
 	templateUrl: './configure-dropbox.component.html',
 	styleUrls: ['./configure-dropbox.component.scss', '../step-configure.component.scss']
 })
-export class ConfigureDropboxComponent {
+export class ConfigureDropboxComponent implements OnDestroy {
 	private _resourceId: string;
 	public folderList: DropDownElement<string>[];
-
+	private _ngUnsubscribe = new Subject();
 	constructor(
 		public wizard: DeploymentCenterWizardService,
 		_portalService: PortalService,
@@ -25,7 +27,7 @@ export class ConfigureDropboxComponent {
 		_aiService: AiService,
 		private _logService: LogService
 	) {
-		this.wizard.resourceIdStream.subscribe(r => {
+		this.wizard.resourceIdStream.takeUntil(this._ngUnsubscribe).subscribe(r => {
 			this._resourceId = r;
 		});
 		this.fillDropboxFolders();
@@ -70,5 +72,9 @@ export class ConfigureDropboxComponent {
 					this._logService.error(LogCategories.cicd, '/fetch-dropbox-folders', err);
 				}
 			);
+	}
+
+	ngOnDestroy(): void {
+		this._ngUnsubscribe.next();
 	}
 }

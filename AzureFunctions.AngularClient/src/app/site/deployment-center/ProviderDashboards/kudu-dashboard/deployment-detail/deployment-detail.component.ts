@@ -1,7 +1,6 @@
 import { TranslateService } from '@ngx-translate/core';
 import { PortalResources } from '../../../../../shared/models/portal-resources';
 import { TableItem } from '../../../../../controls/tbl/tbl.component';
-import { AiService } from '../../../../../shared/services/ai.service';
 import { CacheService } from '../../../../../shared/services/cache.service';
 import { BusyStateScopeManager } from '../../../../../busy-state/busy-state-scope-manager';
 import { BusyStateComponent } from '../../../../../busy-state/busy-state.component';
@@ -13,6 +12,8 @@ import { Component, EventEmitter, Input, OnChanges, Output, ViewChild } from '@a
 import { Subscription as RxSubscription } from 'rxjs/Subscription';
 import * as moment from 'moment';
 import { BroadcastService } from 'app/shared/services/broadcast.service';
+import { LogService } from 'app/shared/services/log.service';
+import { LogCategories } from 'app/shared/models/constants';
 
 class DeploymentDetailTableItem implements TableItem {
     public type: 'row' | 'group';
@@ -48,7 +49,7 @@ export class DeploymentDetailComponent implements OnChanges {
     public logsToShow;
     constructor(
         private _cacheService: CacheService,
-        private _aiService: AiService,
+        private _logService: LogService,
         private _translateService: TranslateService,
         broadcastService: BroadcastService
     ) {
@@ -62,28 +63,29 @@ export class DeploymentDetailComponent implements OnChanges {
                 const deploymentId = deploymentObject.id;
                 return this._cacheService.getArm(`${deploymentId}/log`);
             })
-            .do(null, error => {
-                this.deploymentObject = null;
-                this._aiService.trackEvent('/errors/deployment-center', error);
-                this.busyState.clearBusyState();
-            })
-            .retry()
-            .subscribe(r => {
-                this.busyState.clearBusyState();
-                const logs: ArmArrayResult<DeploymentLogItem> = r.json();
-                this._tableItems = [];
-                logs.value.forEach(val => {
-                    const date: Date = new Date(val.properties.log_time);
-                    const t = moment(date);
-                    this._tableItems.push({
-                        type: 'row',
-                        time: t.format('h:mm:ss A'),
-                        activity: val.properties.message,
-                        log: val.properties.details_url,
-                        id: val.id
+            .subscribe(
+                r => {
+                    this.busyState.clearBusyState();
+                    const logs: ArmArrayResult<DeploymentLogItem> = r.json();
+                    this._tableItems = [];
+                    logs.value.forEach(val => {
+                        const date: Date = new Date(val.properties.log_time);
+                        const t = moment(date);
+                        this._tableItems.push({
+                            type: 'row',
+                            time: t.format('h:mm:ss A'),
+                            activity: val.properties.message,
+                            log: val.properties.details_url,
+                            id: val.id
+                        });
                     });
-                });
-            });
+                },
+                err => {
+                    this.deploymentObject = null;
+                    this._logService.error(LogCategories.cicd, '/deployment-kudu-details', err);
+                    this.busyState.clearBusyState();
+                }
+            );
     }
 
     get TableItems() {
@@ -91,9 +93,12 @@ export class DeploymentDetailComponent implements OnChanges {
     }
 
     redeploy() {
-        this._cacheService.putArm(this.deploymentObject.id).subscribe(r => {
-            //TODO: Implement redeploy
-        });
+        this._cacheService.putArm(this.deploymentObject.id).subscribe(
+            r => {},
+            err => {
+                this._logService.error(LogCategories.cicd, '/deployment-kudu-redeploy', err);
+            }
+        );
     }
 
     close() {

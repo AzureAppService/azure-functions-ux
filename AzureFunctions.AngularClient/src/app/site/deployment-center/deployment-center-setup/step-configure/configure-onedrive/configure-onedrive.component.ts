@@ -9,8 +9,6 @@ import { Constants, LogCategories } from 'app/shared/models/constants';
 import { Subject } from 'rxjs/Subject';
 import { OnDestroy } from '@angular/core/src/metadata/lifecycle_hooks';
 import { LogService } from 'app/shared/services/log.service';
-//import { MovingDirection } from 'app/controls/form-wizard/util/moving-direction.enum';
-//import { SourceSettings } from 'app/site/deployment-center/deployment-center-setup/WizardLogic/deployment-center-setup-models';
 
 @Component({
 	selector: 'app-configure-onedrive',

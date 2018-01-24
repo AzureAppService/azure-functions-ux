@@ -16,226 +16,231 @@ import { BroadcastEvent } from 'app/shared/models/broadcast-event';
 import { LogService } from 'app/shared/services/log.service';
 import { LogCategories } from 'app/shared/models/constants';
 class KuduTableItem implements TableItem {
-	public type: 'row' | 'group';
-	public time: string;
-	public date: string;
-	public status: string;
-	public checkinMessage: string;
-	public commit: string;
-	public author: string;
-	public deploymentObj: ArmObj<Deployment>;
-	public active?: boolean;
+    public type: 'row' | 'group';
+    public time: string;
+    public date: string;
+    public status: string;
+    public checkinMessage: string;
+    public commit: string;
+    public author: string;
+    public deploymentObj: ArmObj<Deployment>;
+    public active?: boolean;
 }
 @Component({
-	selector: 'app-kudu-dashboard',
-	templateUrl: './kudu-dashboard.component.html',
-	styleUrls: ['./kudu-dashboard.component.scss']
+    selector: 'app-kudu-dashboard',
+    templateUrl: './kudu-dashboard.component.html',
+    styleUrls: ['./kudu-dashboard.component.scss']
 })
 export class KuduDashboardComponent implements OnChanges {
-	@Input() resourceId: string;
-	@ViewChild(TblComponent) appTable: TblComponent;
-	private _tableItems: KuduTableItem[];
+    @Input() resourceId: string;
+    @ViewChild(TblComponent) appTable: TblComponent;
+    private _tableItems: KuduTableItem[];
 
-	public viewInfoStream: Subject<string>;
-	_viewInfoSubscription: RxSubscription;
-	_writePermission = true;
-	_readOnlyLock = false;
-	public hasWritePermissions = true;
-	public deploymentObject: DeploymentData;
+    public viewInfoStream: Subject<string>;
+    _viewInfoSubscription: RxSubscription;
+    _writePermission = true;
+    _readOnlyLock = false;
+    public hasWritePermissions = true;
+    public deploymentObject: DeploymentData;
 
-	public RightPaneItem: ArmObj<Deployment>;
-	private _busyManager: BusyStateScopeManager;
-	private _forceLoad = false;
-	public sidePanelOpened = false;
-	constructor(
-		_portalService: PortalService,
-		private _cacheService: CacheService,
-		private _armService: ArmService,
-		private _authZService: AuthzService,
-		private _broadcastService: BroadcastService,
-		private _logService: LogService
-	) {
-		this._busyManager = new BusyStateScopeManager(_broadcastService, 'site-tabs');
-		this._tableItems = [];
-		this.viewInfoStream = new Subject<string>();
-		this._viewInfoSubscription = this.viewInfoStream
-			.switchMap(resourceId => {
-				this._busyManager.setBusy();
-				return Observable.zip(
-					this._cacheService.getArm(resourceId, this._forceLoad),
-					this._cacheService.getArm(`${resourceId}/config/web`, this._forceLoad),
-					this._cacheService.postArm(`${resourceId}/config/metadata/list`),
-					this._cacheService.postArm(`${resourceId}/config/publishingcredentials/list`, this._forceLoad),
-					this._cacheService.getArm(`${resourceId}/sourcecontrols/web`, this._forceLoad),
-					this._cacheService.getArm(`${resourceId}/deployments`, this._forceLoad),
-					this._cacheService.getArm(`/providers/Microsoft.Web/publishingUsers/web`, this._forceLoad),
-					this._authZService.hasPermission(resourceId, [AuthzService.writeScope]),
-					this._authZService.hasReadOnlyLock(resourceId),
-					(
-						site,
-						siteConfig,
-						metadata,
-						pubCreds,
-						sourceControl,
-						deployments,
-						publishingUser,
-						writePerm: boolean,
-						readLock: boolean
-					) => ({
-						site: site.json(),
-						siteConfig: siteConfig.json(),
-						metadata: metadata.json(),
-						pubCreds: pubCreds.json(),
-						sourceControl: sourceControl.json(),
-						deployments: deployments.json(),
-						publishingUser: publishingUser.json(),
-						writePermission: writePerm,
-						readOnlyLock: readLock
-					})
-				);
-			})
-			.subscribe(
-				r => {
-					this._busyManager.clearBusy();
-					this._forceLoad = false;
-					this.deploymentObject = {
-						site: r.site,
-						siteConfig: r.siteConfig,
-						siteMetadata: r.metadata,
-						sourceControls: r.sourceControl,
-						publishingCredentials: r.pubCreds,
-						deployments: r.deployments,
-						publishingUser: r.publishingUser
-					};
-					this._populateTable();
-					setTimeout(() => {
-						this.appTable.groupItems('date', 'desc');
-					}, 0);
-					this._writePermission = r.writePermission;
-					this._readOnlyLock = r.readOnlyLock;
-					this.hasWritePermissions = r.writePermission && !r.readOnlyLock;
-				},
-				err => {
-					this._busyManager.clearBusy();
-					this._forceLoad = false;
-					this.deploymentObject = null;
-					this._logService.error(LogCategories.cicd, '/deployment-center-initial-load', err);
-				}
-			);
-	}
+    public RightPaneItem: ArmObj<Deployment>;
+    private _busyManager: BusyStateScopeManager;
+    private _forceLoad = false;
+    public sidePanelOpened = false;
+    constructor(
+        _portalService: PortalService,
+        private _cacheService: CacheService,
+        private _armService: ArmService,
+        private _authZService: AuthzService,
+        private _broadcastService: BroadcastService,
+        private _logService: LogService
+    ) {
+        this._busyManager = new BusyStateScopeManager(_broadcastService, 'site-tabs');
+        this._tableItems = [];
+        this.viewInfoStream = new Subject<string>();
+        this._viewInfoSubscription = this.viewInfoStream
+            .switchMap(resourceId => {
+                this._busyManager.setBusy();
+                return Observable.zip(
+                    this._cacheService.getArm(resourceId, this._forceLoad),
+                    this._cacheService.getArm(`${resourceId}/config/web`, this._forceLoad),
+                    this._cacheService.postArm(`${resourceId}/config/metadata/list`),
+                    this._cacheService.postArm(`${resourceId}/config/publishingcredentials/list`, this._forceLoad),
+                    this._cacheService.getArm(`${resourceId}/sourcecontrols/web`, this._forceLoad),
+                    this._cacheService.getArm(`${resourceId}/deployments`, this._forceLoad),
+                    this._cacheService.getArm(`/providers/Microsoft.Web/publishingUsers/web`, this._forceLoad),
+                    this._authZService.hasPermission(resourceId, [AuthzService.writeScope]),
+                    this._authZService.hasReadOnlyLock(resourceId),
+                    (
+                        site,
+                        siteConfig,
+                        metadata,
+                        pubCreds,
+                        sourceControl,
+                        deployments,
+                        publishingUser,
+                        writePerm: boolean,
+                        readLock: boolean
+                    ) => ({
+                        site: site.json(),
+                        siteConfig: siteConfig.json(),
+                        metadata: metadata.json(),
+                        pubCreds: pubCreds.json(),
+                        sourceControl: sourceControl.json(),
+                        deployments: deployments.json(),
+                        publishingUser: publishingUser.json(),
+                        writePermission: writePerm,
+                        readOnlyLock: readLock
+                    })
+                );
+            })
+            .subscribe(
+                r => {
+                    this._busyManager.clearBusy();
+                    this._forceLoad = false;
+                    this.deploymentObject = {
+                        site: r.site,
+                        siteConfig: r.siteConfig,
+                        siteMetadata: r.metadata,
+                        sourceControls: r.sourceControl,
+                        publishingCredentials: r.pubCreds,
+                        deployments: r.deployments,
+                        publishingUser: r.publishingUser
+                    };
+                    this._populateTable();
+                    setTimeout(() => {
+                        this.appTable.groupItems('date', 'desc');
+                    }, 0);
+                    this._writePermission = r.writePermission;
+                    this._readOnlyLock = r.readOnlyLock;
+                    this.hasWritePermissions = r.writePermission && !r.readOnlyLock;
+                },
+                err => {
+                    this._busyManager.clearBusy();
+                    this._forceLoad = false;
+                    this.deploymentObject = null;
+                    this._logService.error(LogCategories.cicd, '/deployment-center-initial-load', err);
+                }
+            );
+    }
 
-	private _populateTable() {
-		this._tableItems = [];
-		const deployments = this.deploymentObject.deployments.value;
-		deployments.forEach(value => {
-			const item = value.properties;
-			const date: Date = new Date(item.end_time);
-			const t = moment(date);
+    private _populateTable() {
+        this._tableItems = [];
+        const deployments = this.deploymentObject.deployments.value;
+        deployments.forEach(value => {
+            const item = value.properties;
+            const date: Date = new Date(item.end_time);
+            const t = moment(date);
 
-			const commitId = item.id.substr(0, 7);
-			const author = item.author;
-			const row: KuduTableItem = {
-				type: 'row',
-				time: t.format('h:mm:ss A'),
-				date: t.format('M/D/YY'),
-				commit: commitId,
-				checkinMessage: item.message,
-				// TODO: Compute status and show appropriate message
-				status: item.complete ? 'Complete' : item.progress,
-				active: item.active,
-				author: author,
-				deploymentObj: value
-			};
-			this._tableItems.push(row);
-		});
-	}
-	public ngOnChanges(changes: SimpleChanges): void {
-		if (changes['resourceId']) {
-			this.viewInfoStream.next(this.resourceId);
-		}
-	}
+            const commitId = item.id.substr(0, 7);
+            const author = item.author;
+            const row: KuduTableItem = {
+                type: 'row',
+                time: t.format('h:mm:ss A'),
+                date: t.format('M/D/YY'),
+                commit: commitId,
+                checkinMessage: item.message,
+                // TODO: Compute status and show appropriate message
+                status: item.complete ? 'Complete' : item.progress,
+                active: item.active,
+                author: author,
+                deploymentObj: value
+            };
+            this._tableItems.push(row);
+        });
+    }
+    public ngOnChanges(changes: SimpleChanges): void {
+        if (changes['resourceId']) {
+            this.viewInfoStream.next(this.resourceId);
+        }
+    }
 
-	get FolderPath() {
-		if (this.SourceLocation !== 'Dropbox' && this.SourceLocation !== 'Onedrive') {
-			return null;
-		}
-		const folderPath = this.Repo
-			.replace('https://www.dropbox.com/home', '')
-			.replace('https://api.onedrive.com/v1.0/drive/special/approot:', '');
-		return folderPath;
-	}
+    get FolderPath() {
+        if (this.SourceLocation !== 'Dropbox' && this.SourceLocation !== 'Onedrive') {
+            return null;
+        }
+        const folderPath = this.Repo
+            .replace('https://www.dropbox.com/home', '')
+            .replace('https://api.onedrive.com/v1.0/drive/special/approot:', '');
+        return folderPath;
+    }
 
-	get RollbackEnabled() {
-		const rollbackEnabled = this.deploymentObject && this.deploymentObject.sourceControls.properties.deploymentRollbackEnabled;
-		return rollbackEnabled ? 'Yes' : 'No';
-	}
-	get Repo(): string {
-		return this.deploymentObject && this.deploymentObject.sourceControls.properties.repoUrl;
-	}
+    get RollbackEnabled() {
+        const rollbackEnabled = this.deploymentObject && this.deploymentObject.sourceControls.properties.deploymentRollbackEnabled;
+        return rollbackEnabled ? 'Yes' : 'No';
+    }
+    get Repo(): string {
+        return this.deploymentObject && this.deploymentObject.sourceControls.properties.repoUrl;
+    }
 
-	get Branch() {
-		return this.deploymentObject && this.deploymentObject.sourceControls.properties.branch;
-	}
+    get Branch() {
+        return this.deploymentObject && this.deploymentObject.sourceControls.properties.branch;
+    }
 
-	get ScmType() {
-		const isMerc: boolean = this.deploymentObject && this.deploymentObject.sourceControls.properties.isMercurial;
-		return isMerc ? 'Mercurial' : 'Git';
-	}
+    get ScmType() {
+        const isMerc: boolean = this.deploymentObject && this.deploymentObject.sourceControls.properties.isMercurial;
+        return isMerc ? 'Mercurial' : 'Git';
+    }
 
-	get TableItems() {
-		return this._tableItems || [];
-	}
-	get GitCloneUri() {
-		const publishingUsername = this.deploymentObject && this.deploymentObject.publishingUser.properties.publishingUserName;
-		const scmUri = this.deploymentObject && this.deploymentObject.publishingCredentials.properties.scmUri.split('@')[1];
-		const siteName = this.deploymentObject && this.deploymentObject.site.name;
-		return this.deploymentObject && `https://${publishingUsername}@${scmUri}:443/${siteName}.git`;
-	}
+    get TableItems() {
+        return this._tableItems || [];
+    }
+    get GitCloneUri() {
+        const publishingUsername = this.deploymentObject && this.deploymentObject.publishingUser.properties.publishingUserName;
+        const scmUri = this.deploymentObject && this.deploymentObject.publishingCredentials.properties.scmUri.split('@')[1];
+        const siteName = this.deploymentObject && this.deploymentObject.site.name;
+        return this.deploymentObject && `https://${publishingUsername}@${scmUri}:443/${siteName}.git`;
+    }
 
-	SyncScm() {
-		this._cacheService.postArm(`${this.resourceId}/sync`, true).do(r => {}).retry().subscribe(r => {
-			this._forceLoad = true;
-		});
-	}
+    SyncScm() {
+        this._cacheService.postArm(`${this.resourceId}/sync`, true).do(r => {}).retry().subscribe(r => {
+            this._forceLoad = true;
+        });
+    }
 
-	disconnect() {
-		this._busyManager.setBusy();
-		this._armService.delete(`${this.deploymentObject.site.id}/sourcecontrols/web`).subscribe(r => {
-			this._busyManager.clearBusy();
-			this._broadcastService.broadcastEvent(BroadcastEvent.ReloadDeploymentCenter);
-		});
-	}
-	refresh() {
-		this._forceLoad = true;
-		this.viewInfoStream.next(this.resourceId);
-	}
+    disconnect() {
+        this._busyManager.setBusy();
+        this._armService.delete(`${this.deploymentObject.site.id}/sourcecontrols/web`).subscribe(
+            r => {
+                this._busyManager.clearBusy();
+                this._broadcastService.broadcastEvent(BroadcastEvent.ReloadDeploymentCenter);
+            },
+            err => {
+                this._logService.error(LogCategories.cicd, '/deployment-center-disconnect', err);
+            }
+        );
+    }
+    refresh() {
+        this._forceLoad = true;
+        this.viewInfoStream.next(this.resourceId);
+    }
 
-	details(item: KuduTableItem) {
-		this.RightPaneItem = item.deploymentObj;
-		this.sidePanelOpened = true;
-	}
+    details(item: KuduTableItem) {
+        this.RightPaneItem = item.deploymentObj;
+        this.sidePanelOpened = true;
+    }
 
-	get SourceLocation() {
-		const scmType = this.deploymentObject && this.deploymentObject.siteConfig.properties.scmType;
-		switch (scmType) {
-			case 'BitbucketGit':
-			case 'BitbucketHg':
-				return 'Bitbucket';
-			case 'ExternalGit':
-				return 'External Git';
-			case 'GitHub':
-				return 'GitHub';
-			case 'LocalGit':
-				return 'Local Git';
-			case 'Dropbox':
-			case 'DropboxV2':
-				return 'Dropbox';
-			case 'OneDrive':
-				return 'Onedrive';
-			case 'VSO':
-				return 'Visual Studio Online';
-			default:
-				return '';
-		}
-	}
+    get SourceLocation() {
+        const scmType = this.deploymentObject && this.deploymentObject.siteConfig.properties.scmType;
+        switch (scmType) {
+            case 'BitbucketGit':
+            case 'BitbucketHg':
+                return 'Bitbucket';
+            case 'ExternalGit':
+                return 'External Git';
+            case 'GitHub':
+                return 'GitHub';
+            case 'LocalGit':
+                return 'Local Git';
+            case 'Dropbox':
+            case 'DropboxV2':
+                return 'Dropbox';
+            case 'OneDrive':
+                return 'Onedrive';
+            case 'VSO':
+                return 'Visual Studio Online';
+            default:
+                return '';
+        }
+    }
 }
