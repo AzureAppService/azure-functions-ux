@@ -13,18 +13,19 @@ import 'rxjs/add/observable/of';
 import 'rxjs/add/observable/zip';
 import { BusyStateScopeManager } from './../../busy-state/busy-state-scope-manager';
 import { AuthzService } from '../../shared/services/authz.service';
-import { AiService } from '../../shared/services/ai.service';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { BroadcastService } from 'app/shared/services/broadcast.service';
 import { BroadcastEvent } from 'app/shared/models/broadcast-event';
 import { OnDestroy } from '@angular/core/src/metadata/lifecycle_hooks';
+import { LogCategories } from 'app/shared/models/constants';
+import { LogService } from 'app/shared/services/log.service';
 
 @Component({
 	selector: 'app-deployment-center',
 	templateUrl: './deployment-center.component.html',
 	styleUrls: ['./deployment-center.component.scss']
 })
-export class DeploymentCenterComponent implements OnInit, OnDestroy {
+export class DeploymentCenterComponent implements OnDestroy {
 	public resourceIdStream: Subject<string>;
 	private _resourceId: string;
 	@Input()
@@ -47,9 +48,9 @@ export class DeploymentCenterComponent implements OnInit, OnDestroy {
 	public showWebDeployDashboard = false;
 
 	constructor(
-		private _aiService: AiService,
 		private _authZService: AuthzService,
 		private _cacheService: CacheService,
+		private _logService: LogService,
 		broadcastService: BroadcastService
 	) {
 		this._busyManager = new BusyStateScopeManager(broadcastService, 'site-tabs');
@@ -79,9 +80,9 @@ export class DeploymentCenterComponent implements OnInit, OnDestroy {
 					this.hasWritePermissions = r.writePermission && !r.readOnlyLock;
 					this._busyManager.clearBusy();
 				},
-				error => {
+				err => {
 					this._siteConfigObject = null;
-					this._aiService.trackEvent('/errors/deployment-center', error);
+					this._logService.error(LogCategories.cicd, '/load-deployment-center', err);
 					this._busyManager.clearBusy();
 				}
 			);
@@ -104,6 +105,4 @@ export class DeploymentCenterComponent implements OnInit, OnDestroy {
 	ngOnDestroy() {
 		this._ngUnsubscribe.next();
 	}
-
-	ngOnInit() {}
 }
