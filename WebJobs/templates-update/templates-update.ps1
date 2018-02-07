@@ -1,7 +1,3 @@
-if ($Env:FUNCTIONS_SLOT_NAME -eq "Production") {
-    exit(0)
-}
-
 function ExecuteTemplatesBuild($buildRoot, $outPath) {        
     $templatesFolder = Join-Path $buildRoot -ChildPath "Functions.Templates"                
     $projectFile = Join-Path $buildRoot -ChildPath  "Functions.Templates\Functions.Templates.csproj"
